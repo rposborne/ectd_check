@@ -1,0 +1,75 @@
+#!/usr/bin/env ruby
+#
+# Args: PATH
+#
+# Interactively will parse index.xml and all sub xml files and check linked leafs for md5 mismatch's.  Will Offer to correct them if necessary. 
+
+def help
+  puts "ECTD Checker v: 0.0.1"
+  puts "Licensed under GPLv2"
+  puts "Contact Russell Osborne of Scilucent LLC for other uses rposborne {at} scilucent.com"
+  puts "Usage: checkectd path"
+  exit
+end
+
+args = ARGV.dup
+ARGV.clear
+path = args.shift.strip rescue help
+puts "Checking all Leafs of Submission #{path}"
+
+require 'nokogiri'
+require 'digest/md5'
+
+files_to_check = Dir[File.join("#{path}","**","*.xml")]
+count_failed_files = 0
+files_to_check.each do |file|
+  f = File.open(file)
+  
+  save_flag = false
+  doc = Nokogiri::XML(f)
+  leafs =  doc.css('leaf')
+  
+  leafs.each do |leaf|
+    leaf_href_full_path = File.join( File.dirname(file) , leaf.attribute('href'))
+    calculated_checksum = Digest::MD5.hexdigest(File.read(leaf_href_full_path))
+    leaf_checksum = leaf.attribute("checksum")
+    
+    if calculated_checksum.to_s.chomp != leaf_checksum.to_s.chomp
+      save_flag = true
+      count_failed_files += 1
+      leaf['checksum'] = calculated_checksum
+      puts "md5 mismatch #{calculated_checksum} !=  #{leaf_checksum}   for file #{leaf.attribute('href')}"
+    end
+  end
+  
+  if save_flag  
+    puts ARGV 
+    puts "Checkusm Errors Found in #{file}.   Would you like us to update them (Y/n)?"
+    user_confirm = $stdin.gets.chomp
+    if user_confirm == "Y"
+      puts "updating bad checksums in #{file}"
+      File.open(file, 'w') {|f| f.write(doc.to_xml) }
+    end
+    user_confirm = nil
+  end
+  
+  f.close
+end
+
+index_calculated_checksum = Digest::MD5.file(File.join("#{path}", "index.xml"))
+index_checksum = File.read(File.join("#{path}","index-md5.txt"))
+
+if index_calculated_checksum != index_checksum
+  count_failed_files += 1
+  puts "index.xml md5 mismatch. Would you like us to update them (Y/n)?"
+  user_confirm = $stdin.gets.chomp
+  if user_confirm == "Y"
+    puts "updating bad checksums in #{path}/index-md5.txt"
+    File.open(File.join("#{path}","index-md5.txt"), 'w') {|f| f.write(index_calculated_checksum) }
+  end
+end
+
+puts "#{count_failed_files} bad checksums"
+
+
+
