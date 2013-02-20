@@ -1,6 +1,7 @@
-# EctdCheck
+# ECTD Check
+Is a tiny command line utility meant to rapidly verify and or repair md5 checksums inside a FDA ECTD Submission. 
 
-TODO: Write a gem description
+It can be used to verify data integrity and repair the eCTD backbone if the submission required manual manipulation of PDF's
 
 ## Installation
 
